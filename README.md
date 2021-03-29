@@ -3,7 +3,14 @@
 ## Git notes 
 
 1. This document here is in Markdown (<3)  --- see this link for syntax if you don't know / have forgotten:  https://www.markdownguide.org/basic-syntax/
-2. You're gonna want to start by cloning this repo to your local machine -- https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository -- and then since we're using Matlab we'll just be working local and pushing updates from there 
+2. I think we can use this document as like we've been using google docs --- a running list of current issues 
+3. You're gonna want to start by cloning this repo to your local machine -- https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository -- and then since we're using Matlab we'll just be working local and pushing updates from there 
+
+## Links to other projects
+
+1. Overleaf 
+2. Google sheets
+3. Google docs 
 
 
 ## High level solution method notes & questions 
