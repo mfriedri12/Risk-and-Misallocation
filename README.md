@@ -1,6 +1,10 @@
 # Risk-and-Misallocation
 
-Note this is in Markdown:  https://www.markdownguide.org/basic-syntax/
+## Git notes 
+
+1. This document here is in Markdown (<3)  --- see this link for syntax if you don't know / have forgotten:  https://www.markdownguide.org/basic-syntax/
+2. You're gonna want to start by cloning this repo to your local machine -- https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository -- and then since we're using Matlab we'll just be working local and pushing updates from there 
+
 
 ## High level solution method notes & questions 
 
