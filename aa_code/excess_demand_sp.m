@@ -9,6 +9,7 @@ zmin = param(12); zmax = param(13); zta = param(14); rho = param(15);
 splinep = param(16);nT = param(17);
 r = prices(1); w = prices(2);
 
+gittest = 1;
 % initialize talent grid
 zgrid = logspace(log10(zmin),log10(zmax),splinep);
 
