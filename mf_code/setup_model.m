@@ -37,16 +37,16 @@ model.variables.controls = ['a','k','c']; %[model.variables.endogenous, model.va
 % noted above. Agents are not allowed to choose a state variable outside of this
 % grid so that's why it's part of model 
 
-model.grid.min = [.01 .01];  % borrowing constraints
-model.grid.max = [100 50]; % this is not so important but we're still gonna call it model specific 
+model.grid.min = [0.01 0.01];  % borrowing constraints
+model.grid.max = [500 500]; % this is not so important but we're still gonna call it model specific 
 
 
 %% exogenous state processes
 %used by setup solution to get grid for these and also by *integrate* to calculate expected values
 
-model.exogenous.process.z = @(solution, shocks, parameters) parameters.rho*solution.states.grid.z +  shocks; 
-model.exogenous.grid.z = @(gridsize, parameters) exp(tauchen(0,parameters.rho,parameters.sigma,gridsize)*parameters.sigma/sqrt(1-parameters.rho^2));
-model.exogenous.transition.z = @(gridsize, parameters) tauchen(0, parameters.sigma, parameters.rho,gridsize);
+model.exogenous.process.z = @(solution, shocks, parameters) (solution.states.grid.z.^parameters.rho).*exp(shocks); 
+model.exogenous.grid.z = @(gridsize, parameters) exp(tauchen(0,parameters.rho,parameters.sigma,gridsize)); %   *parameters.sigma/sqrt(1-parameters.rho^2));
+model.exogenous.transition.z = @(gridsize, parameters) tauchen(0,parameters.rho, parameters.sigma, gridsize); % second argument 
 
 
 %% objective & constraint functions 
@@ -128,7 +128,7 @@ model.clearing.w = @(solution, parameters) dot(reshape(labor(solution),[],1), so
 %     1. first roll up objective & constraint functions to be functions of solutions, paramaters (s c p par) 
 %     2. second combine these to be functions of solutions, parametersk
 
-model.other.c = @(solution, parameters) c(solution, parameters);
+model.other.c = @(solution, parameters) c(solution.states.ndgrid, solution.controls.values, solution.prices.values, parameters);
 
 
 end

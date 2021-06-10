@@ -50,6 +50,7 @@ while method.update_controls.threshold < solution.accuracy.controls && iteration
             rhs = model.conditions.rhs(solution.states.ndgrid.z, solution.states.ndgrid.a, solution.states.ndgrid.k, solution.controls.basis.c, model.parameters,solution.prices.values); 
             rhs = interpolate(method, solution, rhs);
             rhs = integrate(model, method, solution, rhs,'values');
+            rhs(rhs<0)=0.01; 
             lhs = model.functions.objective_foc_inv(rhs,model.parameters.gamma); %still normal grid size 
             lhs = interpolate(method, solution, lhs); % easier than subseting? 
             for i=1:2 
@@ -60,30 +61,37 @@ while method.update_controls.threshold < solution.accuracy.controls && iteration
                 eulercombo = interpolate(method, solution, eulercombo);
                 eulercombo = integrate(model, method, solution, eulercombo,'values'); 
                 [~, a_index.(qtype)] = min(abs(eulercombo),[],2); % feel like I should do a root find? but that is so slow? and would it help? 
-                %[~, k_index.(qtype)] = min(abs(eulercombo),[],3); % alt pick k 
-                
+                a_index.(qtype)(a_index.(qtype)==solution.states.dimensions.endogenous(1))=1;
+             
                 % third calculate resources 
                 a.(qtype) = reshape(squeeze(solution.states.grid.a(a_index.(qtype))),[],1); 
-                %a.(qtype) = reshape(squeeze(solution.states.ndgrid.a(:,:,1)),[],1); % alt pick k 
                 k.(qtype) = reshape(squeeze(solution.states.ndgrid.k(:,1,:)),[],1);
-                %k.(qtype) = reshape(squeeze(solution.states.grid.k(k_index.(qtype))),[],1);   % alt pick k 
                 z.(qtype) = reshape(squeeze(solution.states.ndgrid.z(:,1,:)),[],1);
                 c.(qtype) = reshape(squeeze(lhs(z.(qtype), a.(qtype), k.(qtype))),[],1);
                 r.(qtype) = model.functions.resources.a.(qtype)(c.(qtype),a.(qtype),k.(qtype),model.parameters); % z by k' grid      
+                % I'm getting that c is NOT increasing in resources all the time... for points on the grid that jump from like a2 to a3
+                %a new z I think I need it on my z grid  
+                %test = [z.(qtype)  a.(qtype) k.(qtype) c.(qtype) [0;  diff(c.(qtype))] r.(qtype) [0; diff(r.(qtype))]];
                 
-                % fourth subset to just the rz_grid a & interpolate     
-                [r.(qtype), r_index.(qtype)] = sort(r.(qtype));
-                c.(qtype)  =     interpolate(method, solution, c.(qtype)(r_index.(qtype)),  r.(qtype)); 
-                k.(qtype)  =     interpolate(method, solution, k.(qtype)(r_index.(qtype)),  r.(qtype)); %kprime 
-                a.(qtype)  =     interpolate(method, solution, a.(qtype)(r_index.(qtype)),  r.(qtype)); %aprime 
+                % fourth subset to just the rz_grid a & interpolate       
+                c.(qtype)  =  scatteredInterpolant(r.(qtype),z.(qtype),c.(qtype));
+                k.(qtype)  =  scatteredInterpolant(r.(qtype),z.(qtype),k.(qtype));
+                a.(qtype)  =  scatteredInterpolant(r.(qtype),z.(qtype),a.(qtype));
                 
                 %fifth update policy functions based on interpolation
-                c.(qtype) = max(c.(qtype)(model.conditions.resources.b.(qtype)(solution,model.parameters)),0.01);
-                k.(qtype) = max(k.(qtype)(model.conditions.resources.b.(qtype)(solution,model.parameters)),model.grid.min(1));
-                a.(qtype) = max(a.(qtype)(model.conditions.resources.b.(qtype)(solution,model.parameters)),model.grid.min(2));
+                c.(qtype) = c.(qtype)(model.conditions.resources.b.(qtype)(solution,model.parameters),solution.states.ndgrid.z);
+                k.(qtype) = k.(qtype)(model.conditions.resources.b.(qtype)(solution,model.parameters),solution.states.ndgrid.z);
+                a.(qtype) = a.(qtype)(model.conditions.resources.b.(qtype)(solution,model.parameters),solution.states.ndgrid.z);
+                
+                %sixth update policy functions based on interpolation
+                c.(qtype)(c.(qtype)<0)  = .01;
+                k.(qtype)(k.(qtype)<0)  = .01;
+                a.(qtype)(a.(qtype)<0)  = .01;
             end 
             q2 =  k.q2 < solution.states.ndgrid.k;
-            q1 =  1 -  q2; %this is default now for small numerical erros 
+            q1 =  1 -  q2; %this is default now for small numerical errors 
+            %test =  k.q1 >= solution.states.ndgrid.k;
+            %test==q1
             update =                     c.q1.*q1 + c.q2.*q2;
             solution.controls.values.k = k.q1.*q1 + k.q2.*q2;
             solution.controls.values.a = a.q1.*q1 + a.q2.*q2;
@@ -109,7 +117,7 @@ while method.update_controls.threshold < solution.accuracy.controls && iteration
 
     if mod(iteration,method.update_controls.print)==0
         fprintf('iteration: %i, precision: %i \n', iteration, solution.accuracy.controls);
-        if last < solution.accuracy.controls; fprintf('WARNING! algorithm exploding at iteration: %i. Paused. \n',iteration); pause; end
+        if last*10 < solution.accuracy.controls; fprintf('WARNING! algorithm exploding at iteration: %i. Paused. \n',iteration); pause; end
         last = solution.accuracy.controls;
     end
     iteration = iteration + 1; 

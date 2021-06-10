@@ -8,8 +8,8 @@ function [method] = setup_method
 
 %% grids 
 
-method.grid.endogenous.nodes = 6; %  might want to adjust for new models
-method.grid.exogenous.nodes  = 20; %  might want to adjust for new models  
+method.grid.endogenous.nodes = 7; %  might want to adjust for new models
+method.grid.exogenous.nodes  = 5; %  might want to adjust for new models  
 
 method.grid.endogenous.spacing = 'even'; % griddedInterpolant doesn't like log 
 method.grid.exogenous.spacing = 'custom';  % if 'custom' info on how to space is in "model"
@@ -24,13 +24,13 @@ method.update_controls.reset = false;
 
 method.interpolate.algorithm = 'griddedInterpolant';  %'griddedInterpolant', 'basis' 'none'; method for *interpolate* 
 method.interpolate.basis = 'spline'; % either method for griddedInterpolant or basis for basis; sub-method for *interpolate* (used 'makima' before)
-method.interpolate.extrapolation_method = 'makima'; % extrapolation method for griddedInterpolant for *interpolate* (used 'spline' before) 
+method.interpolate.extrapolation_method = 'spline'; % extrapolation method for griddedInterpolant for *interpolate* (used 'spline' before) 
 method.interpolate.degree = 3; % degree for splines or for complete polynomials, only uses if *interpolate* is "basis"
 method.interpolate.breakpoints = {}; % MODEL SPECIFIC these are breakpoints used for splines if spliens is  the basis
 
 method.integrate.algorithm = 'gaussian quadrature';  %'tauchen' 'rowenhurst'; method for *integrate* note that gaussian quadrature requires a basis 
 method.integrate.gaussian = 'qnwnorm'; % type of gaussian quadrature for *integrate*
-method.integrate.nodes = 5; % notes for *integrate* if method is gaussian quadrature 
+method.integrate.nodes = 2; % notes for *integrate* if method is gaussian quadrature 
 
 method.maximize.algorithm = 'golden search';  % hill climbing algorithm for  'newton';
 

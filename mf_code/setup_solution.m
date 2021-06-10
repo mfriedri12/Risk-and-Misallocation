@@ -61,15 +61,6 @@ for i=1:length(model.variables.exogenous)
 end 
     
 
-%% controls & values 
-% guess controls & value function. They are ndgrid sized because that's what griddedInterpolant wants
-
-for i=1:length(model.variables.controls)
-    solution.controls.values.(model.variables.controls(i)) = (solution.states.ndgrid.z.*solution.states.ndgrid.a.*solution.states.ndgrid.k).^.25; %ones(solution.states.dimensions.states);  % guess controls as 1 
-end
-solution.value_function.values =  ones(solution.states.dimensions.states) ; % guess valus as 1 
-
-
 %% distribution  
 % guess distribution, get exogenous transition matricies 
 
@@ -91,5 +82,19 @@ for i=1:length(model.variables.prices)
     end
 end
 
+
+%% controls & values 
+% guess controls & value function. They are ndgrid sized because that's what griddedInterpolant wants
+
+for i=1:length(model.variables.endogenous)
+    solution.controls.values.(model.variables.endogenous(i)) = (solution.states.ndgrid.(model.variables.endogenous(i))).^.8; % (ones(solution.states.dimensions.states);  % guess controls as 1 (solution.states.ndgrid.z.*solution.states.ndgrid.a.*solution.states.ndgrid.k).^.25
+end
+
+for i=1:length(model.variables.other)
+    solution.controls.values.(model.variables.other(i)) = max(model.other.(model.variables.other(i))(solution, model.parameters),.01); % (ones(solution.states.dimensions.states);  % guess controls as 1 (solution.states.ndgrid.z.*solution.states.ndgrid.a.*solution.states.ndgrid.k).^.25
+end
+
+solution.value_function.values =  ones(solution.states.dimensions.states) ; % guess valus as 1 
+ 
  
 end
