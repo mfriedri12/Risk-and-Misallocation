@@ -9,7 +9,7 @@ rho = param.rho; sgm = param.sgm; gm = param.gm;
 ugrid = linspace(0,1,param.ngrid);
 bgrid = param.bmin + (param.bmax - param.bmin).*ugrid.^2; bgrid = bgrid';
 kgrid = param.kmax.*ugrid.^2; kgrid = kgrid';
-zgrid = logspace(log10(param.zmin),log10(param.zmax),param.ngrid); zgrid = zgrid';
+zgrid = linspace(param.zmin,param.zmax,param.ngrid); zgrid = zgrid';
 bkz = [repmat(bgrid,param.ngrid*param.ngrid,1),...
       repmat(repelem(kgrid,param.ngrid,1),param.ngrid,1),...
       repelem(zgrid,param.ngrid*param.ngrid,1)];
@@ -36,16 +36,16 @@ iter = 1;
 while dif >=tol
     
     % outer golden search over next period capital for upward adjusters
-    kprimea = bkz(:,2);
+    kprimea = (1-dt).*bkz(:,2);
     % some agents cannot adjust upward so take this max for them
-    kprimeb = max((profit + (1+r).*bkz(:,1) + (1-dt).*bkz(:,2) + bbar)./(1-th*lmd*(1-dt)),bkz(:,2));
+    kprimeb = max((profit + (1+r).*bkz(:,1) + (1-dt).*bkz(:,2) + bbar)./(1-th*lmd*(1-dt)),kprimea);
     gk = kprimeb - kprimea;
     x(:,1) = kprimea + alpha1*gk; 
     x(:,2) = kprimea + alpha2*gk;
     gskdif = 1;
     while gskdif >= gstol
         for j = 1:2
-            bprimea = -th*lmd*(1-dt).*x(:,j)-bbar;
+            bprimea = -th*lmd*(1-dt).*x(:,j)-bbar + min((1+r).*bkz(:,1),0);
             bprimeb = profit + (1+r).*bkz(:,1) - (x(:,j)-(1-dt).*bkz(:,2));
             gb = bprimeb - bprimea;
             y(:,1) = bprimea + alpha1*gb;
@@ -54,12 +54,14 @@ while dif >=tol
             while gsbdif >= gstol
                for jj = 1:2
                % need to take expectation over z now
-               beval = repmat(x(:,j),1,size(ghx,1));
-               keval = repmat(y(:,jj),1,size(ghx,1));
+               keval = repmat(x(:,j),1,size(ghx,1));
+               beval = repmat(y(:,jj),1,size(ghx,1));
                zrep = repmat(bkz(:,3),1,size(ghx,1));
                ghxeval = repmat(ghx',nbkz,1);
                zeval =  rho.*zrep + sqrt(2)*sgm.*ghxeval;
-               Veval = V0(beval,keval,zeval);  
+               Veval = V0(beval,keval,zeval);
+               testeval = ones(size(zeval));
+               test = testeval*ghw./(sqrt(pi));
                EV = Veval*ghw./(sqrt(pi)); % Expected value next period
                c = profit + (1+r).*bkz(:,1) - (x(:,j)-(1-dt).*bkz(:,2)) - y(:,jj);
                uu(:,jj) = 1/(1-gm).*c.^(1-gm) + bt.*EV;
@@ -70,7 +72,7 @@ while dif >=tol
                gb = bprimeb - bprimea;
                y(:,1) = bprimea + alpha1*gb; 
                y(:,2) = bprimea + alpha2*gb;
-               gsbdif = max(kprimeb - kprimea);
+               gsbdif = max(gb);
             end
             u(:,j) = uu(:,1);   
         end         
@@ -86,7 +88,9 @@ while dif >=tol
     V1 = griddedInterpolant(X1,X2,X3,Veval,'spline','nearest');
     
     dif0 = (V1(bkz)-V0(bkz))./((V1(bkz)+V0(bkz))./2);
-    dif = max(abs(dif0));
+    badind = abs(dif0)>0.05;
+    badvals = [bkz(badind,:),V1(bkz(badind,:)),dif0(badind)];
+    [dif,ind] = max(abs(dif0))
     iter = iter + 1;
     V0 = V1;
 end
