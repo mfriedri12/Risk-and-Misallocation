@@ -1,6 +1,8 @@
 %% update distribution 
 %-------------------------------------------------------------------------%
 % given controls, update distribuiton
+% more useful view that I might rewrite as --
+% reshape(solution.distribution.values, solution.states.dimensions.states)
 %-------------------------------------------------------------------------%
 
 function [solution] = update_distribution (model, method, solution)

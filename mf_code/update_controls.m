@@ -37,14 +37,50 @@ while method.update_controls.threshold < solution.accuracy.controls && iteration
     switch method.update_controls.algorithm
         
         case 'VFI'
-            expected_value_function = interpolate(method, solution, solution.value_function.values); % 1 
-            expected_value_function = integrate(model, method, solution, expected_value_function, 'basis'); % 2.1 
-            bellman = @(controls, states) model.conditions.b1(states, controls, solution.prices.values, model.parameters) + model.parameters.beta*expected_value_function(states.z, controls) ; % 2.2  
-            [solution.controls.values, update] = maximize(model, method, solution, bellman); % 2.2
+            if method.update_controls.vtrick
+                expected_value_function = model.utilities.vtrick_inv(solution.value_function.values, model.parameters);
+            else 
+                expected_value_function = solution.value_function.values;
+            end
+            expected_value_function = interpolate(method, solution, expected_value_function); % 1 
+            expected_value_function = integrate(model, method, solution, expected_value_function, 'basis'); % 2.1           
+            if length(model.variables.endogenous)==1 % no portfolio problem defining bellman on state space grid
+                if method.update_controls.vtrick
+                    bellman = @(c1, solution) model.conditions.b1(c1, solution.states.ndgrid, solution.prices.values, model.parameters) + model.parameters.beta*model.utilities.vtrick(expected_value_function(solution.states.ndgrid.z, c1), model.parameters); % 2.2  
+                else 
+                    bellman = @(c1, solution) model.conditions.b1(c1, solution.states.ndgrid, solution.prices.values, model.parameters) + model.parameters.beta*expected_value_function(solution.states.ndgrid.z, c1) ; % 2.2  
+                end
+            elseif length(model.variables.endogenous)==2 %portfolio problem defining bellman on state space plus control grid
+                if method.update_controls.vtrick
+                    bellman = @(c1, solution) model.conditions.b1(c1, solution.states.ndgridplus.(strcat(model.variables.endogenous(2),model.variables.endogenous(2))), solution.states.ndgridplus, solution.prices.values, model.parameters) + model.parameters.beta*model.utilities.vtrick(expected_value_function(solution.states.ndgridplus.z, c1, solution.states.ndgridplus.(strcat(model.variables.endogenous(2),model.variables.endogenous(2)))), model.parameters); % 2.2  
+                else 
+                    bellman = @(c1, solution) model.conditions.b1(c1, solution.states.ndgridplus.(strcat(model.variables.endogenous(2),model.variables.endogenous(2))), solution.states.ndgridplus, solution.prices.values, model.parameters) + model.parameters.beta*                      (expected_value_function(solution.states.ndgridplus.z, c1, solution.states.ndgridplus.(strcat(model.variables.endogenous(2),model.variables.endogenous(2))))); % 2.2  
+                end
+            end 
+            search_max = model.utilities.max.(model.variables.endogenous(1))(solution, model.parameters); % maximium of search space, must not be so big that c is negative while also respecting borrowing constraint
+            search_min = model.grid.min(1)*ones(size(search_max)); % minimum of search space, borrowing constraint
+            search_max = max(search_max,search_min);
+            [solution.controls.values.(model.variables.endogenous(1)), update] = maximize(method, bellman, search_min, search_max, solution); % 2.2
+            if length(model.variables.endogenous)==2
+                solution.controls.basis.(model.variables.endogenous(1)) = interpolate(method, solution, solution.controls.values.(model.variables.endogenous(1)), solution.states.cell_plus); 
+                solution.controls.basis.(model.variables.endogenous(1)) = @(c2,states) solution.controls.basis.(model.variables.endogenous(1))(states.(model.variables.states(1)),states.(model.variables.states(2)),states.(model.variables.states(3)),c2); % hard coded for 3 states right now 
+                if method.update_controls.vtrick
+                    bellman = @(c2, solution) model.conditions.b1(solution.controls.basis.(model.variables.endogenous(1))(c2,solution.states.ndgrid), c2, solution.states.ndgrid, solution.prices.values, model.parameters) + model.parameters.beta*model.utilities.vtrick(expected_value_function(solution.states.ndgrid.z, solution.controls.basis.(model.variables.endogenous(1))(c2, solution.states.ndgrid), c2), model.parameters); % 2.2  
+                else 
+                    bellman = @(c2, solution) model.conditions.b1(solution.controls.basis.(model.variables.endogenous(1))(c2,solution.states.ndgrid), c2, solution.states.ndgrid, solution.prices.values, model.parameters) + model.parameters.beta*expected_value_function(solution.states.ndgrid.z, solution.controls.basis.(model.variables.endogenous(1))(c2, solution.states.ndgrid), c2); % 2.2  
+                end
+                search_max = model.utilities.max.(model.variables.endogenous(2))(solution, model.parameters); % maximium of search space, must not be so big that c is negative while also respecting borrowing constraint
+                search_min = model.grid.min(2)*ones(size(search_max)); % minimum of search space, borrowing constraint
+                search_max = max(search_max,search_min);
+                [solution.controls.values.(model.variables.endogenous(2)), update] = maximize(method, bellman, search_min, search_max, solution); % 2.2    
+                solution.controls.values.(model.variables.endogenous(1)) = solution.controls.basis.(model.variables.endogenous(1))(solution.controls.values.(model.variables.endogenous(2)), solution.states.ndgrid);   
+            end
             solution.accuracy.controls = max(abs(update - solution.value_function.values), [], 'all'); % 3
-            solution.value_function.values = update; % 4     
+            solution.value_function.values = update; % 4 
+        
         
         case 'BLPT' % I still hate this algorithm
+            
             % first update c on a' k', z grid 
             solution.controls.basis.c = interpolate(method, solution, solution.controls.values.c); % 1 
             rhs = model.conditions.rhs(solution.states.ndgrid.z, solution.states.ndgrid.a, solution.states.ndgrid.k, solution.controls.basis.c, model.parameters,solution.prices.values); 
@@ -52,46 +88,46 @@ while method.update_controls.threshold < solution.accuracy.controls && iteration
             rhs = integrate(model, method, solution, rhs,'values');
             rhs(rhs<0)=0.01; 
             lhs = model.functions.objective_foc_inv(rhs,model.parameters.gamma); %still normal grid size 
-            lhs = interpolate(method, solution, lhs); % easier than subseting? 
+            lhs = interpolate(method, solution, lhs); % easier than subseting?    
             for i=1:2 
                 qtype = strcat('q',string(i));
                 
                 % second find a' on k' z grid given c                                                                                                    endogenous state/control associated with second endogenous state/control, exogenous state, given c 
                 eulercombo = model.conditions.eulercombo.(qtype)(solution.states.ndgrid.z, solution.states.ndgrid.a, solution.states.ndgrid.k,solution.controls.basis.c, model.parameters,solution.prices.values); % model.functions.objective_foc(c(z,a,k))*(model.functions.profit(k,z)
                 eulercombo = interpolate(method, solution, eulercombo);
-                eulercombo = integrate(model, method, solution, eulercombo,'values'); 
+                eulercombo = integrate(model, method, solution, eulercombo,'values');   
                 [~, a_index.(qtype)] = min(abs(eulercombo),[],2); % feel like I should do a root find? but that is so slow? and would it help? 
-                a_index.(qtype)(a_index.(qtype)==solution.states.dimensions.endogenous(1))=1;
-             
+                a_index.(qtype)(a_index.(qtype)==solution.states.dimensions.endogenous(1))=1; % set "not found" to zero 
+                eulercombo = integrate(model, method, solution, eulercombo,'basis'); 
+                eulercombo = integrate(model, method, solution, eulercombo,'basis'); 
+                
                 % third calculate resources 
                 a.(qtype) = reshape(squeeze(solution.states.grid.a(a_index.(qtype))),[],1); 
                 k.(qtype) = reshape(squeeze(solution.states.ndgrid.k(:,1,:)),[],1);
                 z.(qtype) = reshape(squeeze(solution.states.ndgrid.z(:,1,:)),[],1);
                 c.(qtype) = reshape(squeeze(lhs(z.(qtype), a.(qtype), k.(qtype))),[],1);
-                r.(qtype) = model.functions.resources.a.(qtype)(c.(qtype),a.(qtype),k.(qtype),model.parameters); % z by k' grid      
-                % I'm getting that c is NOT increasing in resources all the time... for points on the grid that jump from like a2 to a3
-                %a new z I think I need it on my z grid  
-                %test = [z.(qtype)  a.(qtype) k.(qtype) c.(qtype) [0;  diff(c.(qtype))] r.(qtype) [0; diff(r.(qtype))]];
-                
+                r.(qtype) = model.utilities.resources.a.(qtype)(c.(qtype),a.(qtype),k.(qtype),model.parameters); % z by k' grid      
+                   
                 % fourth subset to just the rz_grid a & interpolate       
                 c.(qtype)  =  scatteredInterpolant(r.(qtype),z.(qtype),c.(qtype));
                 k.(qtype)  =  scatteredInterpolant(r.(qtype),z.(qtype),k.(qtype));
                 a.(qtype)  =  scatteredInterpolant(r.(qtype),z.(qtype),a.(qtype));
                 
-                %fifth update policy functions based on interpolation
-                c.(qtype) = c.(qtype)(model.conditions.resources.b.(qtype)(solution,model.parameters),solution.states.ndgrid.z);
-                k.(qtype) = k.(qtype)(model.conditions.resources.b.(qtype)(solution,model.parameters),solution.states.ndgrid.z);
-                a.(qtype) = a.(qtype)(model.conditions.resources.b.(qtype)(solution,model.parameters),solution.states.ndgrid.z);
+                % fifth update policy functions based on interpolation
+                c.(qtype) = c.(qtype)(model.utilities.resources.b.(qtype)(solution,model.parameters),solution.states.ndgrid.z);
+                k.(qtype) = k.(qtype)(model.utilities.resources.b.(qtype)(solution,model.parameters),solution.states.ndgrid.z);
+                a.(qtype) = a.(qtype)(model.utilities.resources.b.(qtype)(solution,model.parameters),solution.states.ndgrid.z);
                 
-                %sixth update policy functions based on interpolation
+                % sixth make sure nothing's negative 
                 c.(qtype)(c.(qtype)<0)  = .01;
                 k.(qtype)(k.(qtype)<0)  = .01;
                 a.(qtype)(a.(qtype)<0)  = .01;
+            
             end 
             q2 =  k.q2 < solution.states.ndgrid.k;
             q1 =  1 -  q2; %this is default now for small numerical errors 
-            %test =  k.q1 >= solution.states.ndgrid.k;
-            %test==q1
+            test =  k.q1 >= solution.states.ndgrid.k;
+            test==q1
             update =                     c.q1.*q1 + c.q2.*q2;
             solution.controls.values.k = k.q1.*q1 + k.q2.*q2;
             solution.controls.values.a = a.q1.*q1 + a.q2.*q2;

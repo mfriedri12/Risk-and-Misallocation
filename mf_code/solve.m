@@ -10,7 +10,7 @@
 %-------------------------------------------------------------------------%
 
 function [model, method, solution] = solve(model_calibration, method_calibration, guesses)
-
+tic; 
 
 %% setup 
 % setup_model defines the model, setup_method defines the particular
@@ -33,21 +33,22 @@ if exist('guesses','var'); solution = substitute(solution, guesses); end
 % Initalized values for each loop chosen in setup_solution. 
 
 for i = 1:length(model.variables.prices) 
-    if method.update_prices.check_interval; iteration = 0; else; iteration = 1; end
+    iteration = 1;
     solution.accuracy.prices.(model.variables.prices(i)) = 1e5;
     while method.update_prices.threshold < solution.accuracy.prices.(model.variables.prices(i)) && iteration < method.update_prices.iterations
         
-        fprintf('\n ITERATION %f PRICE: %f \n', iteration, solution.prices.values.(model.variables.prices(i)));
+        fprintf('ITERATION %f PRICE (%s): %f \n', iteration, model.variables.prices(i), solution.prices.values.(model.variables.prices(i)));
 
         tic; disp('1. update solution.controls given solution.prices');       [solution] = update_controls(model, method, solution); toc; 
         tic; disp('2. update solution.distribution given solution.controls'); [solution] = update_distribution(model, method, solution); toc; 
-        tic; disp('3. update solution.prices given solution.distribution');   [solution] = update_prices(model, method, solution, model.variables.prices(i), iteration); toc; 
+        tic; disp('3. update solution.prices given solution.distribution');   [solution] = update_prices(model, method, solution, i, iteration); toc; 
 
         iteration = iteration + 1; 
     end
 end
 
 fprintf('\n SOLVED!'); 
+toc; 
 
 end
 

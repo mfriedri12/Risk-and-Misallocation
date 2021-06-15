@@ -48,6 +48,18 @@ for i=1:length(model.variables.states)
     solution.states.stack(:,i) = reshape(solution.states.ndgrid.(model.variables.states(i)), [],1);
 end
 
+% need that extra big grid for maximizing only works for 2 variables 
+if length(model.variables.endogenous) > 1 && contains(method.update_controls.algorithm,'VFI') 
+  solution.states.cell_plus = solution.states.cell; 
+  solution.states.cell_plus{length(solution.states.cell)+1} = solution.states.grid.(model.variables.endogenous(2));   
+  for i=1:length(model.variables.states) 
+    solution.states.ndgridplus.(model.variables.states(i)) = repmat(solution.states.ndgrid.(model.variables.states(i)),[ones(1,length(model.variables.states)) solution.states.dimensions.endogenous(2)]);
+  end
+  twist = reshape(solution.states.grid.(model.variables.endogenous(2)),[ones(1,length(model.variables.states)) solution.states.dimensions.endogenous(2)]);
+  solution.states.ndgridplus.(strcat(model.variables.endogenous(2),model.variables.endogenous(2))) = repmat(twist,[solution.states.dimensions.states 1]);
+end
+
+
 % approximate exogenous state shocks 
 for i=1:length(model.variables.exogenous) 
     switch method.integrate.algorithm
@@ -74,17 +86,17 @@ end
 
 % guess prices & define interval
 for i=1:length(model.variables.prices)
-    solution.prices.values.(model.variables.prices(i)) = 1;  
+    solution.prices.values.(model.variables.prices(i)) = 1.25;  
     solution.prices.interval.(model.variables.prices(i))(1) = (1/method.update_prices.interval)*solution.prices.values.(model.variables.prices(i));
     solution.prices.interval.(model.variables.prices(i))(2) = (method.update_prices.interval)*solution.prices.values.(model.variables.prices(i));
     if method.update_prices.check_interval
        solution.prices.values.(model.variables.prices(i)) = solution.prices.interval.(model.variables.prices(i))(1); 
     end
 end
-
+%solution.prices.algorithm.allexcess = zeros(15,2);
 
 %% controls & values 
-% guess controls & value function. They are ndgrid sized because that's what griddedInterpolant wants
+% guess controls & value function. They are ndgrid sized 
 
 for i=1:length(model.variables.endogenous)
     solution.controls.values.(model.variables.endogenous(i)) = (solution.states.ndgrid.(model.variables.endogenous(i))).^.8; % (ones(solution.states.dimensions.states);  % guess controls as 1 (solution.states.ndgrid.z.*solution.states.ndgrid.a.*solution.states.ndgrid.k).^.25
@@ -94,7 +106,7 @@ for i=1:length(model.variables.other)
     solution.controls.values.(model.variables.other(i)) = max(model.other.(model.variables.other(i))(solution, model.parameters),.01); % (ones(solution.states.dimensions.states);  % guess controls as 1 (solution.states.ndgrid.z.*solution.states.ndgrid.a.*solution.states.ndgrid.k).^.25
 end
 
-solution.value_function.values =  ones(solution.states.dimensions.states) ; % guess valus as 1 
+solution.value_function.values = ones(solution.states.dimensions.states);  %solution.controls.values.(model.variables.other(i))/(1-.9); %ones(solution.states.dimensions.states) ; % guess valus as 1 
  
  
 end

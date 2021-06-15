@@ -23,23 +23,24 @@ model.grid.max = [100]; % this is not so important but we're still gonna call it
 
 %% objective & constraint problem  
 model.functions.objective = @(c, gamma) (c.^(1-gamma))./(1-gamma); 
-model.functions.c = @(r, b, z, bb) 2*z  + r*b  - bb; 
+model.functions.c = @(r, b, z, bb) z  + r*b  - bb; 
+
+
+%% utilities
+model.utilities.max.b = @(solution, parameters) solution.states.ndgrid.z  + solution.prices.values.r*solution.states.ndgrid.b; % maximum b possible so that c is not negative  
 
 
 %% optimal conditions   
-c  = @(s,c,p,par) model.functions.c(p.r, s.b, s.z, c);   
-cf  = @(s,c,p,par) model.functions.c(p.r, s.b, s.z, c.b(s.a,s.z));                                                                             
-ccf = @(s,c,p,par) model.functions.c(p.r, c.b(s.b,s.z), s.z, c.b(c.b(s.a,s.z),s.z));
- 
-model.conditions.max.b = @(solution, parameters) solution.states.ndgrid.z  + solution.prices.values.r*solution.states.ndgrid.b  ; 
-model.conditions.b1 = @(states, controls, prices, parameters) model.functions.objective(c(states, controls, prices, parameters), parameters.gamma); % bellman term 1 
+c  = @(s,b,p,par) model.functions.c(p.r, s.b, s.z, b);   
+model.conditions.b1 = @(c1, states, prices, parameters) model.functions.objective(c(states, c1, prices, parameters), parameters.gamma); % bellman term 1 
+
 
 %% market clearing conditions
 model.clearing.r = @(solution, parameters) dot(solution.states.stack(:,2),solution.distribution.values); 
 
 
 %% controls
-model.other.c = @(solution, parameters) c(solution.states.ndgrid, solution.controls.values.b, solution.prices.values);
+model.other.c = @(solution, parameters) c(solution.states.ndgrid, solution.controls.values.b, solution.prices.values, parameters);
 
 
 end
