@@ -36,12 +36,11 @@ method.integrate.nodes = 5; % notes for *integrate* if method is gaussian quadra
 method.maximize.algorithm = 'golden search';  % hill climbing algorithm for  'newton';
 method.maximize.threshold = 1e-5;  % hill climbing algorithm for  'newton';
 
-
 method.update_distribution.algorithm =  'tan'; %  'eigenvector' 'default'
 method.update_distribution.exogenous_transition = 'tauchen'; % 'rowenhurst' 'gaussian quadrature'
 method.update_distribution.nodes = 10; % nodes for tauchen 
 method.update_distribution.reset = false; % reset distribution to ones each time (instead of using previous) 
-method.update_distribution.print = 40; 
+method.update_distribution.print = 50; 
 
 method.update_prices.interval = 1.25; % determines price search interval -- should be greater than 1 -- needs to be big enough or algorithm will break 
 method.update_prices.check_interval = true; 
@@ -60,8 +59,8 @@ method.update_prices.threshold = 1e-5;
 %% iterations 
 % these specify maximum iterations for the three update algorithms 
 
-method.update_controls.iterations = 300; %if not converged by here probably not going to 
-method.update_distribution.iterations = 1000; 
+method.update_controls.iterations = 1000; %if not converged by here probably not going to 
+method.update_distribution.iterations = 500; 
 method.update_prices.iterations = 100; 
 
 
