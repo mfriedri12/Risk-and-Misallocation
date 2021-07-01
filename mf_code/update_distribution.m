@@ -1,6 +1,8 @@
 %% update distribution 
 %-------------------------------------------------------------------------%
 % given controls, update distribuiton
+% more useful view that I might rewrite as --
+% reshape(solution.distribution.values, solution.states.dimensions.states)
 %-------------------------------------------------------------------------%
 
 function [solution] = update_distribution (model, method, solution)
@@ -63,8 +65,8 @@ if method.update_distribution.reset || ~all(solution.distribution.values > metho
 end
 
 iteration = 0; 
-solution.accuracy.distribution = 1e5;
-while method.update_distribution.threshold < solution.accuracy.distribution && iteration < method.update_distribution.iterations   
+solution.distribution.accuracy = 1e5;
+while method.update_distribution.threshold < solution.distribution.accuracy && iteration < method.update_distribution.iterations   
     
     switch method.update_distribution.algorithm
         case 'tan'
@@ -74,11 +76,11 @@ while method.update_distribution.threshold < solution.accuracy.distribution && i
             distribution = transpose(solution.distribution.transition.endogenous)*solution.distribution.values;
     end
     
-solution.accuracy.distribution = abs(max(distribution - solution.distribution.values));
+solution.distribution.accuracy = abs(max(distribution - solution.distribution.values));
 solution.distribution.values = distribution;  
  
 iteration = iteration + 1;
-if mod(iteration,method.update_distribution.print)==0; fprintf('iteration: %i, precision: %i \n', iteration, solution.accuracy.distribution); end  
+if mod(iteration,method.update_distribution.print)==0; fprintf('iteration: %i, precision: %i \n', iteration, solution.distribution.accuracy); end  
 end
 
 
