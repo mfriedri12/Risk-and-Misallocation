@@ -7,6 +7,6 @@ param.kmax = 100;
 param.zmin = -5*param.sgm; param.zmax = 5*param.sgm;
 param.ngrid = 6;
 param.al = 0.33; param.eta = 0.15; 
-test = VFI(param,prices);
+[V,KPOL,BPOL] = VFI(param,prices);
 
     

@@ -1,4 +1,4 @@
-function [V0] = VFI(param,prices)
+function [V0,KPOL,BPOL] = VFI(param,prices)
 % Input: prices and parameters
 % Output: optimal policy functions
 w = prices.w;
@@ -17,25 +17,30 @@ nbkz = size(bkz,1);
 
 [X1,X2,X3] = ndgrid(bgrid,kgrid,zgrid);
 
-%% compute value of going up
 V0 = griddedInterpolant(X1,X2,X3,zeros(size(X1)),'makima','nearest');
 dif = 1; tol = 1e-2;
 iter = 1;
 while dif >=tol
     
-    Vupeval = computeVup(V0,param,prices,bkz);
-    Vdowneval = computeVdown(V0,param,prices,bkz);
-    ufinal = max(Vupeval,Vdowneval);
+    [Vupeval,kpolup,bpolup] = computeVup(V0,param,prices,bkz);
+    [Vdowneval,kpoldown,bpoldown] = computeVdown(V0,param,prices,bkz);
+    upind = Vupeval >= Vdowneval;
+    ufinal = Vdowneval; ufinal(upind) = Vupeval(upind);
     V1eval = reshape(ufinal,param.ngrid,param.ngrid,param.ngrid);
     V1 = griddedInterpolant(X1,X2,X3,V1eval,'makima','nearest');
-
-
     dif0 = (V1(bkz)-V0(bkz))./((V1(bkz)+V0(bkz))./2);
     dif = max(abs(dif0))
     iter = iter + 1;
     V0 = V1;
 end
 
+% policy functions
+kpolfinal = kpoldown; kpolfinal(upind) =  kpolup(upind);
+bpolfinal = bpoldown; bpolfinal(upind) = bpolup(upind);
+kpoleval = reshape(kpolfinal,param.ngrid,param.ngrid,param.ngrid);
+bpoleval = reshape(bpolfinal,param.ngrid,param.ngrid,param.ngrid);
+KPOL = griddedInterpolant(X1,X2,X3,kpoleval,'makima','nearest');
+BPOL = griddedInterpolant(X1,X2,X3,bpoleval,'makima','nearest');
 
 end
 

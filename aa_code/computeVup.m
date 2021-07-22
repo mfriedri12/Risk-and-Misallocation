@@ -1,4 +1,4 @@
-function [Vupeval] = computeVup(V0,param,prices,bkz)
+function [Vupeval,kpol,bpol] = computeVup(V0,param,prices,bkz)
 %UNTITLED2 Summary of this function goes here
 %   Detailed explanation goes here
 w = prices.w;
@@ -53,6 +53,7 @@ iter = 1;
        end
        bduu(:,jj) = 1/(1-gm).*c.^(1-gm) + bt.*EV;
        end
+       bbduu = bprime;
         % normal bprime golden search
         gsbdif = 1;
         while gsbdif >= gstol
@@ -77,12 +78,14 @@ iter = 1;
            bprime(:,1) = bprime(:,1).*(uu(:,1)>uu(:,2)) + y(:,1).*(uu(:,1)<=uu(:,2));
            bprime(:,2) = bprime(:,2).*(uu(:,1)<=uu(:,2)) + y(:,2).*(uu(:,1)>uu(:,2));
            gb = bprime(:,2) - bprime(:,1);
+           bpoltemp= [y(:,1),bbduu]; % putting this here to back out policy function. see y changes on next line
            y(:,1) = bprime(:,1) + alpha1*gb; 
            y(:,2) = bprime(:,1) + alpha2*gb;
            gsbdif = max(gb);
         end
-        testuu = [uu(:,1),bduu(:,1),bduu(:,2)];
-        bdu(:,j) = max([uu(:,1),bduu(:,1),bduu(:,2)],[],2);   
+        [bdu(:,j),maxind] = max([uu(:,1),bduu(:,1),bduu(:,2)],[],2,'linear'); 
+        bbdu(:,j) = bpoltemp(maxind);
+        kbdu(:,j) = kprime(:,j);
     end
     
     % normal kprime golden search
@@ -112,6 +115,7 @@ iter = 1;
            end
            bduu(:,jj) = 1/(1-gm).*c.^(1-gm) + bt.*EV;
            end
+           bbduu = bprime;
             % normal golden search
             gsbdif = 1;
             while gsbdif >= gstol
@@ -136,12 +140,14 @@ iter = 1;
                bprime(:,1) = bprime(:,1).*(uu(:,1)>uu(:,2)) + y(:,1).*(uu(:,1)<=uu(:,2));
                bprime(:,2) = bprime(:,2).*(uu(:,1)<=uu(:,2)) + y(:,2).*(uu(:,1)>uu(:,2));
                gb = bprime(:,2) - bprime(:,1);
+               bpoltemp= [y(:,1),bbduu]; % putting this here to back out  policy function. see y changes on next line
                y(:,1) = bprime(:,1) + alpha1*gb; 
                y(:,2) = bprime(:,1) + alpha2*gb;
                gsbdif = max(gb);
             end
-            testuu = [uu(:,1),bduu(:,1),bduu(:,2)];
-            u(:,j) = max([uu(:,1),bduu(:,1),bduu(:,2)],[],2);   
+            [u(:,j),maxind] = max([uu(:,1),bduu(:,1),bduu(:,2)],[],2,'linear');
+            bu(:,j) = bpoltemp(maxind);
+            ku(:,j) = x(:,j);
         end         
         kprime(:,1) = kprime(:,1).*(u(:,1)>u(:,2)) + x(:,1).*(u(:,1)<=u(:,2));
         kprime(:,2) = kprime(:,2).*(u(:,1)<=u(:,2)) + x(:,2).*(u(:,1)>u(:,2));
@@ -150,7 +156,31 @@ iter = 1;
         x(:,2) = kprime(:,1) + alpha2*gk;
         gskdif = max(kprime(:,2) - kprime(:,1));
     end
-    testu = [u(:,1),bdu(:,1),bdu(:,2)];
-    Vupeval = max([u(:,1),bdu(:,1),bdu(:,2)],[],2);
+    [Vupeval,maxind] = max([u(:,1),bdu(:,1),bdu(:,2)],[],2,'linear');
+    % assign proper capital and bond choice
+    bpoltemp= [bu(:,1),bbdu];
+    kpoltemp = [ku(:,1),kbdu];
+    bpol = bpoltemp(maxind);
+    kpol = kpoltemp(maxind);  
+    
+    % make sure policy functions are correct. i.e. give the same value as Vupeval
+    keval = repmat(kpol,1,size(ghx,1));
+    beval = repmat(bpol,1,size(ghx,1));
+    zrep = repmat(bkz(:,3),1,size(ghx,1));
+    ghxeval = repmat(ghx',nbkz,1);
+    zeval =  rho.*zrep + sqrt(2)*sgm.*ghxeval;
+    V0eval = V0(beval,keval,zeval);
+    EV = V0eval*ghw./(sqrt(pi));
+    c = profit + (1+r).*bkz(:,1) - (kpol-(1-dt).*bkz(:,2)) - bpol;
+    if min(c) < -1e-5
+       error('negative c')
+    else
+       c = max(c,0);
+    end
+    testV = 1/(1-gm).*c.^(1-gm) + bt.*EV;
+    check = abs(Vupeval-testV);
+    if max(check)> 1e-10
+        error('policy functions not giving same value as Vupeval')
+    end
 end
 
