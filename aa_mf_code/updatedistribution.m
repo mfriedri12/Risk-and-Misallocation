@@ -44,8 +44,8 @@ spacer = eye(prod(param.ngrid));
 s = 1; 
 policies.k = @(states) KPOL(states(2),states(3),states(1)); %switching order so that it's z
 policies.b = @(states) BPOL(states(2),states(3),states(1));
-policynames(1) = 'k';
-policynames(2) = 'b'; 
+policynames(1) = 'b';
+policynames(2) = 'k'; 
 
 
 for i=1:length(dist)
@@ -69,7 +69,7 @@ for i=1:length(dist)
         if j==1 
             transition_i_to_i = transition_i_to_j; 
         else
-            transition_i_to_i = reshape(transition_i_to_i*transition_i_to_j',[],1);
+            transition_i_to_i = reshape(transition_i_to_i*transition_i_to_j',[],1);  % Did I FLIP THIS ?? previously transition_i_to_i*transition_i_to_j'
         end
           
     end   
@@ -119,6 +119,14 @@ end
 
 %% repermute dist back to bkz 
 
+% check solution 
+% for i=1:nzbk; testb(i) = policies.b(zbk(i,:)); end
+% testk = 0;
+% for i=1:nzbk; testk(i) = policies.k(zbk(i,:)); end
+% [zbk testb' testk' dist dist>0] % looks good 
+% sum(reshape(dist,3,nzbk/3),2) % looks good 
+
+
 % switch back to bkz 
 indicies = 0:(nzbk/param.ngrid -1); 
 permutation = [];
@@ -127,12 +135,6 @@ for i = 1:(param.ngrid)
 end
 dist = dist(permutation'); %test = zbk(permutation',[2 3 1]); %test
 
-% check solution 
-% for i=1:nzbk; testb(i) = policies.b(zbk(i,:)); end
-% testk = 0;
-% for i=1:nzbk; testk(i) = policies.k(zbk(i,:)); end
-% [zbk testb' testk' dist dist>0] % looks good 
-% sum(reshape(dist,3,nzbk/3),2) % looks good 
 
 
  
