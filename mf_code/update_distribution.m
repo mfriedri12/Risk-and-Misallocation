@@ -19,7 +19,7 @@ for i=1:length(solution.distribution.values)
         
         % find transition probability from state point i to grid space j  
         transition_i_to_j = zeros(solution.states.dimensions.endogenous(j),1) ;
-        lookup = solution.controls.basis.(model.variables.endogenous(j))(solution.states.stack(i,:));
+        lookup = solution.controls.function.(model.variables.endogenous(j))(solution.states.stack.(model.variables.states)(i,:));
         h = find(lookup<=solution.states.grid.(model.variables.endogenous(j)),1); % first index greater 
         if h==1  % lookup value below grid 
             transition_i_to_j(1) = 1; 
@@ -40,7 +40,6 @@ for i=1:length(solution.distribution.values)
     end   
     
     % add exogenous state zeros or duplicate for full matrix 
-    
     switch method.update_distribution.algorithm
        case 'tan' 
           solution.distribution.transition.endogenous(i,:) = reshape(transpose(transition_i_to_i*spacer(s,:)),[],1); 
@@ -59,7 +58,6 @@ end
 
 %% solve for distribution 
 % start with some guess, and then iterate forward to solve for distribution 
-
 if method.update_distribution.reset || ~all(solution.distribution.values > method.update_distribution.threshold )
     solution.distribution.values = ones(prod(solution.states.dimensions.states),1)/prod(solution.states.dimensions.states); % guess uniform distribution 
 end

@@ -11,7 +11,7 @@ function [solution] = update_prices(model, method, solution, solve_iteration)
 
 for i=1:length(model.variables.prices)
     solution.prices.algorithm.prices.(model.variables.prices(i))(solve_iteration) = solution.prices.values.(model.variables.prices(i));         
-    solution.prices.algorithm.excess.(model.variables.prices(i))(solve_iteration) = model.clearing.(model.variables.prices(i))(solution, model.parameters);
+    solution.prices.algorithm.excess.(model.variables.prices(i))(solve_iteration) = model.clearing.(model.variables.prices(i))(solution.states.stack, solution.prices.values, solution.distribution.values, model.parameters);
     fprintf('EXCESS (%s): %f ',model.variables.prices(i), solution.prices.algorithm.excess.(model.variables.prices(i))(solve_iteration)); 
 end
 fprintf('\n');
@@ -27,7 +27,9 @@ if solve_iteration==1 && method.update_prices.check_interval
            % for i=0 aka first run should be min min (min first price & min second price) excess should be - -
            if i==1 % max max (max first price & max second price) excess should be + + 
                solution.prices.values.(model.variables.prices(1)) = solution.prices.interval.(model.variables.prices(1))(2);
-               solution.prices.values.(model.variables.prices(2)) = solution.prices.interval.(model.variables.prices(2))(2);
+               if length(model.variables.prices)>1 
+                    solution.prices.values.(model.variables.prices(2)) = solution.prices.interval.(model.variables.prices(2))(2);
+               end
            elseif i==2 % min max (min first price & max second price) excess should be - + 
                solution.prices.values.(model.variables.prices(1)) = solution.prices.interval.(model.variables.prices(1))(1);
            elseif i==3 % max min (max first price & min second price) excess should be + -
@@ -39,12 +41,12 @@ if solve_iteration==1 && method.update_prices.check_interval
            for j=1:length(model.variables.prices); fprintf('PRICE (%s): %f ', model.variables.prices(j), solution.prices.values.(model.variables.prices(j))); end 
            fprintf('\n');
             
-           tic; disp('1. update solution.controls given solution.prices');       [solution] = update_controls(model, method, solution); toc; 
-           tic; disp('2. update solution.distribution given solution.controls'); [solution] = update_distribution(model, method, solution); toc; 
+           disp('1. update solution.controls given solution.prices');       [solution] = update_controls(model, method, solution); toc; 
+           disp('2. update solution.distribution given solution.controls'); [solution] = update_distribution(model, method, solution); toc; 
 
            for j=1:length(model.variables.prices)    
                solution.prices.algorithm.prices.(model.variables.prices(j))(solve_iteration+i) = solution.prices.values.(model.variables.prices(j));
-               solution.prices.algorithm.excess.(model.variables.prices(j))(solve_iteration+i) = model.clearing.(model.variables.prices(j))(solution, model.parameters);
+               solution.prices.algorithm.excess.(model.variables.prices(j))(solve_iteration+i) = model.clearing.(model.variables.prices(j))(solution.states.stack, solution.prices.values, solution.distribution.values, model.parameters);
                fprintf('EXCESS (%s): %f ',model.variables.prices(j), solution.prices.algorithm.excess.(model.variables.prices(j))(solve_iteration+i)); 
            end     
            fprintf('\n');
@@ -57,9 +59,11 @@ if solve_iteration==1 && method.update_prices.check_interval
           (length(model.variables.prices)==2 && ...
           all((sign(solution.prices.algorithm.excess.(model.variables.prices(1)))==[-1 1 -1 1])) && ...
           all((sign(solution.prices.algorithm.excess.(model.variables.prices(2)))==[-1 1 1 -1])))
-          solve_iteration = 2; %solve iterations 3 & 4 will be overwritten if it's 2 prices, but that's ok 
-          solution.prices.values.(model.variables.prices(2)) = solution.prices.algorithm.prices.(model.variables.prices(2))(2);
           fprintf('Interval OK! \n');
+          solve_iteration = 2; %solve iterations 3 & 4 will be overwritten if it's 2 prices, but that's ok 
+          if length(model.variables.prices)==2
+            solution.prices.values.(model.variables.prices(2)) = solution.prices.algorithm.prices.(model.variables.prices(2))(2);
+          end
        else 
           fprintf('\nWARNING: interval not valid! Paused.'); 
           pause 

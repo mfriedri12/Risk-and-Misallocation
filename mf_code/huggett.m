@@ -3,8 +3,10 @@
 % This is a huggett calibration 
 %-------------------------------------------------------------------------%
 
-function [model] = huggett()
+function [model, method] = huggett()
 
+%% parameters 
+model.parameters.sigma.z = .1; 
 
 %% variables 
 model.variables.exogenous = ['z']; %  ["z: productivity"]; exogenous states 
@@ -14,33 +16,28 @@ model.variables.prices = ['r']; % ["w: wages" "r: liquid asset return"];
 model.variables.states = ['z', 'b'];
 model.variables.controls = ['b', 'c'];
 
-
 %% grid 
 %limits for endogenous states 
-model.grid.min = [-5];  % borrowing constraints
-model.grid.max = [100]; % this is not so important but we're still gonna call it model specific 
-
+model.grid.min.z = -.6882; 
+model.grid.min.b = -3;  % borrowing constraints
+model.grid.max.z = .6882; 
+model.grid.max.b = 150;
 
 %% objective & constraint problem  
 model.functions.objective = @(c, gamma) (c.^(1-gamma))./(1-gamma); 
-model.functions.c = @(r, b, z, bb) z  + r*b  - bb; 
+model.functions.c = @(bb, z, b, r) exp(z)  + r*b  - bb; 
 
-
-%% utilities
-model.utilities.max.b = @(solution, parameters) solution.states.ndgrid.z  + solution.prices.values.r*solution.states.ndgrid.b; % maximum b possible so that c is not negative  
-
-
-%% optimal conditions   
-c  = @(s,b,p,par) model.functions.c(p.r, s.b, s.z, b);   
-model.conditions.b1 = @(c1, states, prices, parameters) model.functions.objective(c(states, c1, prices, parameters), parameters.gamma); % bellman term 1 
-
+%% setup for value function maximization 
+model.utilities.max.b = @(states, prices, parameters) states.z  + prices.r*states.b; % maximum b possible so that c is not negative    
+model.conditions.b1 =   @(control, states, prices, parameters) model.functions.objective(model.functions.c(control, states.z, states.b, prices.r), parameters.gamma); % bellman term 1 
 
 %% market clearing conditions
-model.clearing.r = @(solution, parameters) dot(solution.states.stack(:,2),solution.distribution.values); 
-
+model.clearing.r = @(states, prices, distribution, parameters) dot(states.b,distribution); 
 
 %% controls
-model.other.c = @(solution, parameters) c(solution.states.ndgrid, solution.controls.values.b, solution.prices.values, parameters);
+model.other.c = @(controls, states, prices, parameters) model.functions.c(controls.b, states.z, states.b, prices.r);
 
+%% other 
+method.update_prices.interval = 1.04;
 
 end

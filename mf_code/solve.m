@@ -37,14 +37,14 @@ while method.update_prices.threshold < solution.prices.accuracy && iteration < m
     for i=1:length(model.variables.prices); fprintf(' PRICE (%s): %f', model.variables.prices(i), solution.prices.values.(model.variables.prices(i))); end 
     fprintf('\n'); 
 
-    tic; disp('1. update solution.controls given solution.prices');       [solution] = update_controls(model, method, solution); toc; 
-    tic; disp('2. update solution.distribution given solution.controls'); [solution] = update_distribution(model, method, solution); toc; 
-    tic; disp('3. update solution.prices given solution.distribution');   [solution] = update_prices(model, method, solution, iteration); toc; 
+    disp('1. update solution.controls given solution.prices');       [solution] = update_controls(model, method, solution); toc; 
+    disp('2. update solution.distribution given solution.controls'); [solution] = update_distribution(model, method, solution); toc; 
+    disp('3. update solution.prices given solution.distribution');   [solution] = update_prices(model, method, solution, iteration); toc; 
 
     iteration = iteration + 1; 
 end
 
-fprintf('\n SOLVED!'); 
+fprintf('\n SOLVED!\n'); 
 
 toc; 
 end

@@ -30,7 +30,9 @@ f1 = feval(f,x1,varargin{:});
 f2 = feval(f,x2,varargin{:});
 
 d = alpha1*alpha2*d;
-while max(d)>tol
+%iter = 1;
+while max(d, [], 'all') > tol % max(d) > tol  % 
+
   d = d*alpha2;
     
   selector = f2<f1 ; 
@@ -47,14 +49,6 @@ while max(d)>tol
   f1 = newf1; 
   f2 = newf2; 
   
-  %if f2<f1 % x2 is new upper bound
-  %  x2 = x1; x1 = x1-d; 
-  %  f2 = f1; f1 = feval(f,x1,varargin{:});
-  %else     % x1 is new lower bound
-  %  x1 = x2; x2 = x2+d; 
-  %  f1 = f2; f2 = feval(f,x2,varargin{:});
-  %end
-  
 end
 
 % Return the larger of the two
@@ -62,5 +56,3 @@ selector = f2>f1;
 x1 = selector.*x2 + (1-selector).*x1;
 f1 = selector.*f2 + (1-selector).*f1;
 
-
-%if f2>f1, x1 = x2; f1 = f2; end
